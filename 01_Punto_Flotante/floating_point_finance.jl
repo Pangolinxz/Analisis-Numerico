@@ -27,18 +27,9 @@ begin
 	gr()
 end
 
-# ╔═╡ 9cd90ec4-69ae-4b1e-a835-6f3f7d3ba100
-macro bind(def, element)
-	quote
-		local el = $(esc(element))
-		global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : missing
-		el
-	end
-end
-
 # ╔═╡ 6fdb3e8d-82b6-40dc-b857-a73a0d1d9102
 begin
-	const AUTOR = "Mateo Gabriel Gonzalez Lara"
+	AUTOR = "Mateo Gabriel Gonzalez Lara"
 	md"""
 	# Cuando unos decimales cambian una decisión
 	## Aritmética de punto flotante y cruces de medias móviles
@@ -47,7 +38,7 @@ begin
 	**Materia:** Analisis Numerico  
 	**Entregable:** investigación experimental interactiva en Julia/Pluto.jl
 
-	> **Mapa de la investigación:** intuición → pregunta → predicción → experimento → evidencia → explicación → nueva comprensión.
+	> **El recorrido:** una intuición sencilla → una pregunta incómoda → un experimento → una forma distinta de entender la precisión.
 	"""
 end
 
@@ -55,7 +46,7 @@ end
 md"""
 ## 1. Intuición inicial
 
-Un precio cercano a 100 parece pequeño para un computador moderno. Es tentador pensar que `Float32` conserva decimales suficientes y que reemplazar `Float64` solo cambia cifras que no afectan una estrategia. Pero una estrategia no siempre entrega otro número: a menudo transforma un número en una decisión discreta mediante una comparación.
+Al comenzar, un precio cercano a 100 no me parecía un reto para un computador moderno. Mi intuición era sencilla: si `Float32` conserva varios decimales, cambiar desde `Float64` apenas debería alterar cifras invisibles. La duda apareció al recordar que una estrategia no siempre devuelve otro número; a veces toma una decisión tajante —comprar o no comprar— a partir de una comparación.
 
 ## 2. Pregunta de investigación
 
@@ -77,20 +68,20 @@ y preguntaremos si puede ocurrir
 
 ## 3. ¿Por qué es interesante?
 
-El almacenamiento reducido puede ahorrar memoria y ancho de banda, pero la validez de una precisión no depende solo de cuántos decimales se pierden. Depende de cómo el algoritmo usa el resultado. Un umbral convierte una perturbación continua y pequeña en una salida discreta potencialmente distinta. Demostrar las condiciones de ese cambio es más informativo que declarar, sin contexto, que un formato es “mejor”.
+Me interesó esta pregunta porque conecta dos mundos que parecen separados: una diferencia diminuta en la representación y una decisión completamente distinta en el algoritmo. Usar menos precisión puede ahorrar memoria y ancho de banda, pero no basta con contar los decimales perdidos. Importa qué hace el programa con ellos. Cerca de un umbral, algo casi imperceptible puede cambiar una respuesta de “no” a “sí”.
 
 ## 4. Predicción inicial — registrada antes de observar resultados
 
-> Esperamos que `Float32` y `Float64` produzcan prácticamente las mismas decisiones: `Float32` parece tener precisión suficiente para precios ordinarios y las diferencias deberían afectar únicamente algunos decimales. Anticipamos, como máximo, desacuerdos excepcionalmente raros.
+> Mi predicción fue que `Float32` y `Float64` producirían prácticamente las mismas decisiones. Para precios ordinarios, `Float32` parecía tener precisión suficiente; esperaba que las diferencias quedaran escondidas en los últimos decimales y que los desacuerdos, si aparecían, fueran excepcionalmente raros.
 
-Esta predicción no se modifica después de ejecutar los experimentos.
+Dejo escrita esta predicción tal como era antes de mirar los resultados, porque equivocarse de una manera razonable también forma parte de investigar.
 """
 
 # ╔═╡ f371d73f-1996-42de-a30a-f5a4dbdb7104
 md"""
 ## 5. Conceptos necesarios
 
-IEEE 754 define formatos y operaciones de punto flotante. Un número binario normal se representa, esquemáticamente, como
+Para seguir la pista de esos decimales hay que mirar cómo se guardan. IEEE 754 define los formatos y las operaciones de punto flotante. Un número binario normal se representa, esquemáticamente, como
 
 ```math
 (-1)^s\,(1.f)_2\,2^e.
@@ -106,7 +97,7 @@ El bit de signo fija el signo, el exponente fija la escala y la fracción almace
 - **Cancelación**: restar números cercanos elimina dígitos comunes y hace visible el error previo de los operandos.
 - **Overflow**: un resultado excede el mayor valor finito y puede convertirse en `Inf`. **Underflow**: cae hacia la región subnormal o cero; los subnormales permiten pérdida gradual de precisión.
 
-`BigFloat` será una **referencia de alta precisión**, no “el real exacto”. En el caso controlado construimos los datos a 256 bits y documentamos qué objeto estamos aproximando.
+Usaré `BigFloat` como **referencia de alta precisión**, no como si fuera “el número real exacto”. En el caso controlado construiré los datos a 256 bits y dejaré claro qué objeto se está aproximando.
 """
 
 # ╔═╡ 2a56e72d-dd14-47b5-ad2b-a3a66d95a105
@@ -162,20 +153,20 @@ end
 
 # ╔═╡ 3753e01c-2f44-4cee-8cb1-492087922108
 md"""
-**Lectura.** `eps(T)` describe la separación en 1; `eps(T(x))` o `nextfloat(T(x))-T(x)` describe la resolución local. La tabla muestra por código tanto underflow gradual (subnormal menor que el mínimo normal) como el límite previo al overflow. `Float16` sirve aquí como lupa pedagógica; la pregunta principal sigue siendo `Float32` frente a `Float64`.
+**Una primera pista.** `eps(T)` describe la separación en 1, mientras `eps(T(x))` o `nextfloat(T(x))-T(x)` muestra la resolución cerca de un valor concreto. La tabla deja ver que la “distancia entre números” cambia con la escala. `Float16` servirá como una lupa pedagógica; la pregunta central seguirá siendo `Float32` frente a `Float64`.
 """
 
 # ╔═╡ 7c832c27-bdc4-40f5-86ab-ec5ab8dbf109
 md"""
 ## 6. Diseño experimental
 
-**Hipótesis operacional.** Si el margen ``m=\operatorname{SMA}_{s}-\operatorname{SMA}_{l}`` es grande frente al error de cómputo, las señales coincidirán. Si ``|m|`` es comparable con la resolución/los redondeos, el signo puede cambiar.
+La idea que guía el experimento es esta: si el margen ``m=\operatorname{SMA}_{s}-\operatorname{SMA}_{l}`` es grande frente al error de cómputo, las señales deberían coincidir. Pero si ``|m|`` es comparable con la resolución y los redondeos, el signo podría cambiar.
 
-**Variables.** Formato (`Float16`, `Float32`, `Float64`), escala del precio, ventanas, ruido, tendencia y semilla. La salida primaria es el acuerdo de la señal booleana; también medimos margen y error numérico.
+Quise acercarme al problema por capas. Primero observé cuándo dos números distintos se vuelven indistinguibles. Después implementé una media móvil cuyo tipo se pudiera auditar, busqué por código un caso de desacuerdo y repetí el experimento con muchas series. Finalmente varié la escala y llevé la pregunta a una serie financiera real.
 
-**Metodología.** (1) observar colisiones de representación; (2) implementar la SMA sin promoción oculta; (3) buscar un caso controlado, sin escribirlo a mano; (4) repetir con múltiples series; (5) variar distancia al umbral y escala; (6) contrastar con datos reales locales.
+Los formatos, la escala del precio, las ventanas, el ruido, la tendencia y la semilla son variables explícitas. La salida principal es sencilla —si las dos precisiones toman o no la misma decisión—, pero también conservo el margen y el error numérico para entender *por qué* ocurre.
 
-**Reproducibilidad.** Toda aleatoriedad procede de `MersenneTwister(seed)`. Los valores mostrados, tablas y gráficas nacen de las mismas estructuras calculadas.
+Toda aleatoriedad nace de `MersenneTwister(seed)`. Las cifras, tablas y gráficas se calculan desde las mismas estructuras; no hay resultados importantes escritos a mano.
 """
 
 # ╔═╡ bf8c7454-1fe0-4d1d-9125-e3797142b110
@@ -259,8 +250,10 @@ begin
 	type_audit = [
 		("entrada Float32", string(eltype(probe32))),
 		("SMA Float32", string(eltype(moving_average(probe32, 2)))),
+		("valor SMA Float32", string(typeof(moving_average(probe32, 2)[end]))),
 		("entrada Float64", string(eltype(probe64))),
 		("SMA Float64", string(eltype(moving_average(probe64, 2)))),
+		("valor SMA Float64", string(typeof(moving_average(probe64, 2)[end]))),
 		("denominador Float32", string(typeof(Float32(2)))),
 	]
 	mdtable(["Comprobación", "Tipo observado"], type_audit)
@@ -297,15 +290,22 @@ begin
 end
 
 # ╔═╡ fb2400cb-488a-4e67-8fc9-ab1473993121
-md"""
-La búsqueda recorrió fracciones de la ULP local, no introdujo dos precios elegidos a mano. Encontró ``B=A+$(collision.fraction)\,\mathrm{ULP}_{32}``. `Float64` distingue los valores, mientras ambos caen en la misma celda de redondeo de `Float32`. La diferencia se pierde **al convertir el dato**, antes incluso de calcular la media.
+let
+	fraction_text = "$(numerator(collision.fraction))/$(denominator(collision.fraction))"
+	Markdown.parse("""
+	El buscador recorrió fracciones de la ULP local; no le entregué dos precios preparados para que fallara. Encontró que la separación entre los valores es **$(fraction_text) × ULP₃₂**. Es decir:
 
-## 8. Experimento 2 — una SMA transparente
+	**B = A + $(fraction_text) × ULP₃₂**
 
-`moving_average` suma cada ventana desde cero. Esta elección facilita auditar el tipo y evita confundir el experimento con el error persistente de una actualización acumulativa. La variante centrada se reserva para estudiar más adelante la influencia de la forma de cálculo.
+	Para `Float64`, A y B son distintos. Al convertirlos a `Float32`, ambos caen en la misma casilla representable. La primera sorpresa aparece muy pronto: la diferencia puede perderse **al convertir el dato**, antes incluso de calcular una media.
 
-## 9. Experimento 3 — búsqueda de un cambio de decisión
-"""
+	## 8. Experimento 2 — una SMA transparente
+
+	La función `moving_average` suma cada ventana desde cero. Preferí esta versión sencilla porque deja ver con claridad el tipo del acumulador y evita esconder el fenómeno detrás de una optimización. Más adelante usaré una variante centrada para preguntar cuánto depende el resultado de la forma de sumar.
+
+	## 9. Experimento 3 — búsqueda de un cambio de decisión
+	""")
+end
 
 # ╔═╡ 53ba5c73-2bd4-49d5-a48a-493739025122
 begin
@@ -353,14 +353,33 @@ begin
 end
 
 # ╔═╡ c9dd0e1c-c2d4-49ed-a4a4-f410f49cc123
-md"""
-**Datos utilizados (registrados por el buscador).** La serie tiene $(long_window) observaciones: las primeras $(long_window-short_window) son `$(controlled.xbig[1])` y las últimas $(short_window) son `$(controlled.xbig[end])`. El desplazamiento fue ``$(fmt(controlled.delta, digits=12))``, el primer candidato de $(controlled.k) pasos aceptado por la búsqueda.
+let
+	total_observations = long_window
+	initial_observations = long_window - short_window
+	final_observations = short_window
+	initial_value = fmt(controlled.xbig[1], digits=12)
+	final_value = fmt(controlled.xbig[end], digits=12)
+	delta_value = fmt(controlled.delta, digits=12)
+	abs_error_value = fmt(abs_error_controlled, digits=12)
+	rel_error_value = fmt(rel_error_controlled, digits=5)
+	search_step = controlled.k
 
-- Error absoluto entre los márgenes `Float64` y `Float32`: **$(fmt(abs_error_controlled, digits=12))**.
-- Error relativo respecto al margen `Float64`: **$(fmt(rel_error_controlled, digits=5))**. Es grande porque el denominador —el margen— está deliberadamente cerca de cero; no significa que el precio tenga un error relativo grande.
+	Markdown.parse("""
+	**El caso que encontró el programa**
 
-Este caso no prueba frecuencia en mercados. Prueba **posibilidad causal**: al redondearse las últimas observaciones al mismo `Float32`, desaparece una diferencia que `Float64` y la referencia de 256 bits conservan. Ahora debemos evitar basar toda la conclusión en este ejemplo.
-"""
+	- Observaciones totales: **$(total_observations)**.
+	- Primeras **$(initial_observations)** observaciones: valor **$(initial_value)**.
+	- Últimas **$(final_observations)** observaciones: valor **$(final_value)**.
+	- Desplazamiento aplicado a las últimas observaciones: **$(delta_value)**.
+	- Primer paso aceptado por la búsqueda: **$(search_step)**.
+	- Error absoluto entre los márgenes `Float64` y `Float32`: **$(abs_error_value)**.
+	- Error relativo respecto al margen `Float64`: **$(rel_error_value)**.
+
+	El error relativo es grande porque su denominador —el margen— está deliberadamente cerca de cero; no significa que el precio tenga un error relativo grande.
+
+	Este caso no dice con qué frecuencia sucede en un mercado. Dice algo más modesto, pero importante: **puede suceder**, y podemos seguir la causa. Al redondear las últimas observaciones a `Float32`, desaparece una diferencia que `Float64` y la referencia de 256 bits todavía ven. Un ejemplo convincente puede seducir demasiado, así que el siguiente paso es comprobar que la conclusión no dependa sólo de él.
+	""")
+end
 
 # ╔═╡ 2cf520f7-eed5-418a-b8b3-d160c33c3124
 begin
@@ -445,9 +464,9 @@ end
 md"""
 ## 10. Experimento sistemático Monte Carlo
 
-Cada réplica contiene una oscilación suave, tendencia diminuta y ruido independiente alrededor de la escala elegida. Esto fuerza cruces legítimos sin garantizar desacuerdos. La tabla superior agrega $(n_simulations) series y $(mc.total) decisiones válidas.
+Un solo contraejemplo responde “¿puede ocurrir?”, pero no muestra el paisaje alrededor del fenómeno. Por eso repetí el experimento. Cada réplica contiene una oscilación suave, una tendencia diminuta y ruido independiente alrededor de la escala elegida. Así aparecen cruces legítimos sin obligar al programa a producir desacuerdos. La tabla reúne $(n_simulations) series y $(mc.total) decisiones válidas.
 
-Que el porcentaje sea pequeño no invalida el fenómeno; que sea grande tampoco demuestra pérdidas monetarias. La salida mide sensibilidad numérica de **esta regla y este generador**, no desempeño financiero.
+Un porcentaje pequeño no borra el fenómeno; uno grande tampoco demuestra pérdidas monetarias. Lo que estoy midiendo es la sensibilidad numérica de **esta regla bajo este generador**, no la rentabilidad de una estrategia.
 """
 
 # ╔═╡ de1af706-784e-4f08-bde4-f28e87c76127
@@ -475,7 +494,7 @@ end
 
 # ╔═╡ dc922fd7-12d4-4e8a-b568-30b4f7331128
 md"""
-**Sensibilidad al umbral.** Clasificamos *todas* las decisiones, no solo las discordantes, según la distancia del margen `Float64` a cero medida en ULP₃₂. La comparación revela las condiciones: lejos del umbral, un error pequeño no alcanza a cruzarlo; cerca de cero, la misma perturbación puede invertir o borrar el signo.
+**La distancia que realmente importa.** Clasifiqué *todas* las decisiones, no sólo las discordantes, según la distancia del margen `Float64` a cero medida en ULP₃₂. El patrón empieza a aclararse: lejos del umbral, el error no alcanza a cruzarlo; cerca de cero, la misma perturbación puede invertir el signo o borrarlo.
 
 ## 11. Gráficas de la evidencia
 """
@@ -493,7 +512,7 @@ end
 
 # ╔═╡ a7b8af27-98fb-4791-af70-255e363f5130
 md"""
-**Qué demuestra.** La SMA corta responde antes a la oscilación; los puntos donde ambas curvas se encuentran son candidatos a un cambio de señal. La figura da contexto temporal, no pretende simular retornos realistas.
+**Cómo leerla.** La SMA corta responde primero a la oscilación. Allí donde las curvas casi se tocan aparece la zona interesante: una decisión puede estar sostenida por un margen diminuto. La figura da contexto temporal; no pretende imitar retornos reales.
 """
 
 # ╔═╡ 662f2b0d-bffb-4686-9655-29cac7869131
@@ -514,7 +533,7 @@ end
 
 # ╔═╡ bbd6158b-6901-4d8f-acd9-b6372adb1132
 md"""
-**Qué demuestra.** El zoom se centra en el primer desacuerdo de la serie interactiva; si esa realización no contiene ninguno, se centra honestamente en su menor margen. Curvas visualmente superpuestas pueden quedar en lados diferentes de la comparación.
+**Al acercarnos.** El zoom busca el primer desacuerdo de la serie interactiva; si esa realización no tiene ninguno, muestra honestamente su margen más pequeño. Dos curvas que el ojo percibe como una sola todavía pueden quedar en lados opuestos de una comparación.
 """
 
 # ╔═╡ 3588ed2a-e4c5-42c0-8be2-9887fa63a133
@@ -531,7 +550,7 @@ end
 
 # ╔═╡ 818e7d38-7c64-441d-98c1-6f50885b4134
 md"""
-**Qué demuestra.** Esta es la discontinuidad relevante: arriba de cero se compra y en cero o abajo no. La escala vertical permite ver una diferencia que la gráfica de precios oculta.
+**Aquí está el salto.** Por encima de cero se compra; en cero o por debajo, no. La escala vertical hace visible una diferencia que desaparecía en la gráfica de precios. El número cambia poco, pero la decisión no sabe cambiar “un poco”.
 """
 
 # ╔═╡ 1e995594-7292-440f-909e-29c382570135
@@ -544,7 +563,7 @@ end
 
 # ╔═╡ 27659a07-df77-4421-bfe9-195bedeb4136
 md"""
-**Qué demuestra.** El error es pequeño en unidades de precio. Su relevancia depende de compararlo con el margen, no con el precio base.
+**Una diferencia pequeña, ¿respecto a qué?** En unidades de precio el error parece minúsculo. Sólo adquiere significado al compararlo con el margen que separa la decisión del umbral, no con el precio completo.
 """
 
 # ╔═╡ 5bd48995-c3bb-413f-9726-0544f51f5137
@@ -558,7 +577,7 @@ end
 
 # ╔═╡ 85fb3d9b-7af9-48fb-a868-38f64231d138
 md"""
-**Qué demuestra.** La frecuencia condicional concentra la evidencia: la distancia al umbral organiza mejor el riesgo de cambio que el error absoluto aislado. Barras vacías significan que esa simulación no produjo observaciones en el intervalo.
+**El patrón.** La distancia al umbral organiza el riesgo de cambio mucho mejor que el error absoluto aislado. Las barras vacías no son fallos: indican que esa simulación no produjo observaciones dentro del intervalo.
 """
 
 # ╔═╡ 48fc7c63-7a46-4a92-9659-6b619ca73139
@@ -575,7 +594,7 @@ end
 
 # ╔═╡ c83d3abe-abde-45d2-88db-cef2cd8f6140
 md"""
-**Qué demuestra.** La precisión relativa dentro de un intervalo binario es aproximadamente constante, pero la separación **absoluta** crece por escalones con la magnitud. Por eso “siete dígitos decimales” no es una resolución monetaria fija.
+**La escala también habla.** Dentro de un intervalo binario la precisión relativa es aproximadamente constante, pero la separación **absoluta** crece por escalones con la magnitud. Decir “siete dígitos decimales” oculta esta parte de la historia: no existe una única resolución monetaria para todo valor.
 
 ## 12. Sensibilidad a la escala
 """
@@ -595,7 +614,7 @@ end
 
 # ╔═╡ 94eb02b7-34a3-4a18-80b8-a5b28b40d142
 md"""
-**Interpretación.** Aquí la señal pequeña se mantiene en unidades absolutas mientras la base cambia. No esperamos una curva perfectamente monótona —la suma también redondea y las celdas binarias cambian por escalones—, pero la tabla permite comprobar si, al crecer la ULP₃₂ respecto a la señal, se pierden más distinciones. Un resultado sin desacuerdos en una escala también es evidencia válida de suficiencia bajo esas condiciones.
+**Qué esperaba encontrar aquí.** Mantengo la señal pequeña en unidades absolutas mientras cambia el precio base. No espero una curva perfectamente monótona —la suma también redondea y las celdas binarias cambian por escalones—, pero sí observar cuándo la ULP₃₂ empieza a competir con la señal. Si una escala no produce desacuerdos, también es un resultado: bajo esas condiciones, `Float32` fue suficiente.
 
 ## 13. Float16 como contraste y efecto del algoritmo de suma
 """
@@ -631,20 +650,149 @@ end
 
 # ╔═╡ 44895b55-940c-4347-aa3c-c9fd315ea144
 md"""
-`Float16` hace visible la pérdida de resolución y no se propone como formato habitual de precios. Si la escala y la ventana hacen que la suma intermedia exceda `floatmax(Float16)`, la tabla lo registra como resultado no finito y **no lo cuenta como decisión**: una media matemáticamente finita también puede fallar por overflow intermedio. La SMA centrada evalúa la misma media algebraica, pero suma desviaciones pequeñas respecto a una ancla. Puede reducir el redondeo al sumar números grandes; no puede recuperar información que ya se perdió al convertir cada precio a `Float32`. Esto separa tres causas: **representación de entradas**, **propagación durante operaciones** y **rango de los intermedios**.
+No propongo `Float16` como formato habitual para precios; lo uso porque exagera el problema y permite verlo mejor. Si la escala y la ventana hacen que la suma intermedia supere `floatmax(Float16)`, aparece `Inf` aunque la media matemática sea finita: el camino del cálculo importa tanto como su destino. La SMA centrada cuenta la misma historia algebraica de otra manera, sumando desviaciones pequeñas alrededor de un ancla. Puede reducir el redondeo, pero no resucitar información perdida al convertir los datos. Así pude separar tres fuentes del problema: **representación de las entradas**, **propagación durante las operaciones** y **rango de los valores intermedios**.
 
 ## 14. Comprobación secundaria con datos financieros reales
 
-Usamos una copia local de la serie diaria **dólares estadounidenses por euro (DEXUSEU)** distribuida por Federal Reserve Economic Data (FRED), primer semestre de 2025. Es una serie pública del Board of Governors de la Reserva Federal. El notebook no consulta Internet. Las cotizaciones publicadas tienen una resolución decimal muy superior a la ULP de `Float32` cerca de esos valores, pero eso no garantiza de antemano el acuerdo de todas las medias.
+Después de trabajar con series construidas cerca del límite, quise mirar datos que no hubieran sido elegidos para hacer fallar a `Float32`. Usé una copia **integrada en este notebook** de la serie diaria **dólares estadounidenses por euro (DEXUSEU)** de FRED, correspondiente al primer semestre de 2025. El notebook no consulta Internet ni necesita archivos externos. Estas cotizaciones tienen una resolución decimal mucho mayor que la ULP de `Float32` cerca de esos valores, pero preferí medir antes que dar por hecho el resultado.
 """
 
 # ╔═╡ 87c63ca7-6e5e-4820-ae61-4f187246f145
 begin
-	function load_local_prices(path::AbstractString)
-		lines = readlines(path)
+	DEXUSEU_2025_H1 = raw"""observation_date,DEXUSEU
+2025-01-02,1.0261
+2025-01-03,1.0292
+2025-01-06,1.0397
+2025-01-07,1.0369
+2025-01-08,1.0313
+2025-01-09,1.0298
+2025-01-10,1.0238
+2025-01-13,1.0209
+2025-01-14,1.0292
+2025-01-15,1.0282
+2025-01-16,1.0303
+2025-01-17,1.0287
+2025-01-20,
+2025-01-21,1.0423
+2025-01-22,1.0420
+2025-01-23,1.0420
+2025-01-24,1.0515
+2025-01-27,1.0492
+2025-01-28,1.0427
+2025-01-29,1.0416
+2025-01-30,1.0420
+2025-01-31,1.0400
+2025-02-03,1.0277
+2025-02-04,1.0379
+2025-02-05,1.0419
+2025-02-06,1.0368
+2025-02-07,1.0329
+2025-02-10,1.0312
+2025-02-11,1.0346
+2025-02-12,1.0392
+2025-02-13,1.0428
+2025-02-14,1.0498
+2025-02-17,
+2025-02-18,1.0457
+2025-02-19,1.0406
+2025-02-20,1.0475
+2025-02-21,1.0455
+2025-02-24,1.0478
+2025-02-25,1.0498
+2025-02-26,1.0514
+2025-02-27,1.0414
+2025-02-28,1.0402
+2025-03-03,1.0496
+2025-03-04,1.0534
+2025-03-05,1.0768
+2025-03-06,1.0818
+2025-03-07,1.0859
+2025-03-10,1.0837
+2025-03-11,1.0927
+2025-03-12,1.0925
+2025-03-13,1.0859
+2025-03-14,1.0872
+2025-03-17,1.0922
+2025-03-18,1.0927
+2025-03-19,1.0877
+2025-03-20,1.0848
+2025-03-21,1.0806
+2025-03-24,1.0794
+2025-03-25,1.0804
+2025-03-26,1.0781
+2025-03-27,1.0800
+2025-03-28,1.0826
+2025-03-31,1.0796
+2025-04-01,1.0800
+2025-04-02,1.0868
+2025-04-03,1.1052
+2025-04-04,1.1014
+2025-04-07,1.0912
+2025-04-08,1.0912
+2025-04-09,1.1040
+2025-04-10,1.1192
+2025-04-11,1.1325
+2025-04-14,1.1358
+2025-04-15,1.1290
+2025-04-16,1.1382
+2025-04-17,1.1364
+2025-04-18,1.1390
+2025-04-21,1.1508
+2025-04-22,1.1466
+2025-04-23,1.1350
+2025-04-24,1.1363
+2025-04-25,1.1381
+2025-04-28,1.1387
+2025-04-29,1.1396
+2025-04-30,1.1349
+2025-05-01,1.1279
+2025-05-02,1.1330
+2025-05-05,1.1315
+2025-05-06,1.1345
+2025-05-07,1.1348
+2025-05-08,1.1249
+2025-05-09,1.1270
+2025-05-12,1.1106
+2025-05-13,1.1176
+2025-05-14,1.1206
+2025-05-15,1.1189
+2025-05-16,1.1141
+2025-05-19,1.1236
+2025-05-20,1.1254
+2025-05-21,1.1343
+2025-05-22,1.1281
+2025-05-23,1.1350
+2025-05-26,
+2025-05-27,1.1326
+2025-05-28,1.1286
+2025-05-29,1.1370
+2025-05-30,1.1347
+2025-06-02,1.1432
+2025-06-03,1.1373
+2025-06-04,1.1424
+2025-06-05,1.1440
+2025-06-06,1.1397
+2025-06-09,1.1425
+2025-06-10,1.1423
+2025-06-11,1.1490
+2025-06-12,1.1578
+2025-06-13,1.1557
+2025-06-16,1.1581
+2025-06-17,1.1535
+2025-06-18,1.1521
+2025-06-19,
+2025-06-20,1.1520
+2025-06-23,1.1538
+2025-06-24,1.1608
+2025-06-25,1.1620
+2025-06-26,1.1717
+2025-06-27,1.1724
+2025-06-30,1.1770"""
+
+	function parse_embedded_prices(csv::AbstractString)
 		dates = String[]
 		values = Float64[]
-		for line in Iterators.drop(lines, 1)
+		for line in Iterators.drop(eachline(IOBuffer(csv)), 1)
 			parts = split(strip(line), ',')
 			length(parts) == 2 || continue
 			value = tryparse(Float64, parts[2])
@@ -654,8 +802,7 @@ begin
 		(; dates, values)
 	end
 
-	real_data_path = joinpath(@__DIR__, "data", "dexuseu_2025_h1.csv")
-	real_data = load_local_prices(real_data_path)
+	real_data = parse_embedded_prices(DEXUSEU_2025_H1)
 	real_comparison = compare_precisions(real_data.values, 5, 20)
 	mdtable(
 		["Serie local", "Observaciones", "Decisiones", "Desacuerdos 32/64", "%"],
@@ -667,11 +814,15 @@ end
 
 # ╔═╡ a2810628-b9c8-48df-acf6-8b06b3724146
 md"""
-**Lectura honesta.** Esta validación no fue filtrada para encontrar fallos. Si arroja cero desacuerdos, significa que `Float32` fue suficiente para esta serie, estas ventanas y estos datos publicados; no contradice el caso controlado. Tampoco autoriza generalizar a ejecución intradía, otros indicadores o datos con distinta escala.
+**Una lectura sin forzar el resultado.** Esta serie no fue filtrada para encontrar fallos. Si aparecen cero desacuerdos, la conclusión correcta es limitada: `Float32` fue suficiente para estos datos, estas ventanas y esta regla. Eso no contradice el caso controlado, pero tampoco permite generalizar a datos intradía, otros indicadores o escalas diferentes.
 
-## 15. Resultados y explicación matemática
+## 15. Resultados
 
-La regla es una función discontinua:
+Las tablas y gráficas no están allí para decorar una respuesta; son la respuesta. El caso controlado muestra que el cambio de decisión es posible, Monte Carlo explora con qué frecuencia aparece bajo condiciones explícitas y DEXUSEU ofrece el contraste de una serie que no fue escogida para producir desacuerdos.
+
+## 16. ¿Por qué ocurre?
+
+La explicación terminó siendo más sencilla y, al mismo tiempo, más profunda de lo que esperaba. La regla es una función discontinua:
 
 ```math
 D(x,y)=\begin{cases}1,&x>y,\\0,&x\le y.\end{cases}
@@ -689,7 +840,7 @@ Si ``|m|>|\Delta e|`` y el error no apunta más allá del umbral, el signo se co
 D(\hat x,\hat y)\ne D(x,y),
 ```
 
-aunque ``|e_x|`` y ``|e_y|`` sean minúsculos respecto al nivel del precio. La resta de medias cercanas expone el error (cancelación), y la comparación amplifica su consecuencia lógica: una diferencia numérica pequeña no implica una diferencia pequeña en el comportamiento.
+aunque ``|e_x|`` y ``|e_y|`` sean minúsculos respecto al nivel del precio. La resta de medias cercanas deja al descubierto el error previo por cancelación, y la comparación amplifica su consecuencia lógica. Ésta fue la conexión decisiva: una diferencia numérica pequeña no tiene por qué producir una diferencia pequeña en el comportamiento.
 
 ### Lo que la evidencia permite afirmar
 
@@ -702,7 +853,7 @@ aunque ``|e_x|`` y ``|e_y|`` sean minúsculos respecto al nivel del precio. La r
 
 # ╔═╡ 69703e2d-a4c0-4385-b649-71fc6d911147
 md"""
-## 16. Limitaciones y revisión crítica
+## 17. Limitaciones y revisión crítica
 
 - Las series sintéticas están construidas deliberadamente cerca de la resolución `Float32`. Son adecuadas para identificar causalidad y frontera de fallo, no para estimar prevalencia en un mercado.
 - Un desacuerdo de señal no equivale por sí mismo a pérdida financiera; faltan costos, latencia, ejecución, posición y retorno posterior.
@@ -711,32 +862,36 @@ md"""
 - No atribuimos a la precisión patrones causados por aleatoriedad: cada réplica calcula ambas precisiones sobre la **misma** serie subyacente.
 - La regla `>` define que un empate es `NO COMPRAR`. Otra política de empate, una tolerancia o histéresis cambiaría la sensibilidad y debería especificarse como parte del algoritmo.
 
-**Nueva pregunta derivada.** ¿Qué banda de tolerancia o histéresis reduce cambios espurios sin retrasar excesivamente una señal legítima? No la respondemos aquí porque cambiaría la estrategia; queda como continuación natural.
+El experimento dejó abierta otra pregunta que ahora me parece inevitable: **¿qué banda de tolerancia o histéresis reduce cambios espurios sin retrasar demasiado una señal legítima?** No la respondo aquí porque implicaría cambiar la estrategia, pero es una continuación natural de lo aprendido.
 
-## 17. Conclusión
+## 18. Conclusión
 
-La respuesta es **sí, bajo condiciones identificables**. En el caso buscado automáticamente, `Float64` conserva un margen positivo mientras `Float32` redondea observaciones y/o medias hasta producir empate o signo distinto. Con los controles predeterminados, Monte Carlo produjo **$(mc.different) desacuerdos de $(mc.total)** decisiones ($(round(mc.pct, digits=3)) %); en cambio, la serie real DEXUSEU produjo **$(count(real_comparison.disagreements)) desacuerdos**. Por tanto, la investigación no muestra que `Float32` falle siempre: lejos del umbral las decisiones coinciden y, en esta validación real, fueron idénticas.
+La respuesta corta es **sí, bajo condiciones que podemos identificar**. En el caso encontrado por el buscador, `Float64` conserva un margen positivo mientras `Float32` redondea las observaciones o las medias hasta llegar a un empate o a otro signo. Con los controles predeterminados, Monte Carlo produjo **$(mc.different) desacuerdos de $(mc.total)** decisiones ($(round(mc.pct, digits=3)) %); la serie DEXUSEU, en cambio, produjo **$(count(real_comparison.disagreements)) desacuerdos**.
 
-La precisión suficiente se decide comparando el error con el **margen de decisión** y considerando las operaciones, no contando decimales ni comparando el error con el nivel del precio.
+La respuesta importante tiene un matiz: esto no significa que `Float32` “falle siempre”. Lejos del umbral, las decisiones coinciden; en la serie real estudiada también coincidieron. El riesgo aparece cuando el error numérico y el margen de decisión viven en escalas parecidas.
 
-## 18. ¿Qué cambió en nuestra comprensión?
+Por eso ya no preguntaría simplemente cuántos decimales conserva un formato. Preguntaría si su error es pequeño frente al **margen de decisión** y qué operaciones tendrá que atravesar antes de llegar a él.
 
-Al inicio tratábamos los últimos decimales como un detalle del número almacenado. Los resultados obligan a separar dos escalas: el error respecto al precio y el error respecto al margen. Vimos que un error diminuto en la primera puede ser decisivo en la segunda, porque el umbral no es continuo. También cambió una intuición más sutil: elegir `Float64` no es la única decisión numérica; la forma de sumar y la política alrededor del empate pertenecen al diseño del algoritmo. Ahora evaluaríamos una precisión mediante análisis de sensibilidad y márgenes observados, no mediante una etiqueta general de “alta” o “baja” precisión.
+## 19. ¿Qué cambió en mi comprensión?
+
+Al comenzar pensaba en los últimos decimales como un detalle del número almacenado. Ahora distingo dos escalas que antes mezclaba: el error frente al precio y el error frente al margen de decisión. Un error insignificante en la primera puede ser decisivo en la segunda, porque el umbral introduce un salto.
+
+También cambió una idea más sutil. Elegir `Float32` o `Float64` no es la única decisión numérica: la forma de sumar y la manera de tratar un empate también forman parte del algoritmo. Después de este experimento, no llamaría a una precisión “alta” o “baja” en abstracto; preguntaría **alta o baja respecto a qué margen, bajo qué operaciones y para qué decisión**.
 """
 
 # ╔═╡ a7af8eae-a480-445d-9884-41fd6132b148
 md"""
-## 19. Uso de inteligencia artificial
+## 20. Uso de inteligencia artificial
 
 **Asistente utilizado:** ChatGPT/Codex de OpenAI.
 
-Se utilizó para explorar la pregunta, diseñar experimentos, desarrollar y depurar Julia, proponer visualizaciones y someter la interpretación a revisión crítica. Dos preguntas guía fueron:
+Usé ChatGPT/Codex como compañero de exploración: me ayudó a convertir una intuición vaga en una pregunta comprobable, a diseñar los experimentos, depurar Julia, proponer visualizaciones y discutir interpretaciones alternativas. Dos preguntas que orientaron el trabajo fueron:
 
 > ¿Puede un error pequeño de representación en `Float32` cambiar el resultado de una comparación utilizada para tomar una decisión algorítmica?
 
 > ¿Cómo diseñar un experimento reproducible que determine cuándo `Float32` y `Float64` producen señales diferentes en un cruce de medias móviles?
 
-**Qué se verificó y cuestionó.** No aceptamos sin prueba que el código “usa Float32”: comprobamos `eltype` de entrada y salida y construimos acumulador y denominador en `T`. La documentación oficial confirma que un literal como `1.0` es `Float64`, mientras `1.0f0` es `Float32`; por eso una expresión mal tipada podría introducir otra precisión. También contrastamos bits, epsilon, `nextfloat` y semántica de los formatos con documentación de Julia e IEEE, y verificamos el caso crítico con `BigFloat(256)` y aserciones independientes. La IA ayudó a producir el artefacto, pero los resultados presentados los ejecuta el notebook.
+**Lo que tuve que verificar y corregir.** No acepté como prueba que una variable se llamara “Float32”. Revisé `eltype` y `typeof`, y construí tanto el acumulador como el denominador en el tipo `T` para evitar promociones silenciosas. La documentación oficial confirmó que `1.0` es `Float64`, mientras `1.0f0` es `Float32`; una expresión aparentemente inocente podía cambiar la precisión real del experimento. También contrasté bits, epsilon, `nextfloat` y el comportamiento de los formatos con Julia e IEEE, y comprobé el caso crítico mediante `BigFloat(256)` y aserciones independientes. La IA ayudó a preguntar y a construir, pero no fue la autoridad final: los resultados los calcula el notebook y las afirmaciones técnicas se apoyan en fuentes verificables.
 
 ## Referencias
 
@@ -745,7 +900,7 @@ Se utilizó para explorar la pregunta, diseñar experimentos, desarrollar y depu
 3. Higham, N. J. (2002). *Accuracy and Stability of Numerical Algorithms*, 2.ª ed. SIAM. DOI: [10.1137/1.9780898718027](https://doi.org/10.1137/1.9780898718027).
 4. The Julia Project. *Integers and Floating-Point Numbers*. [Manual oficial de Julia](https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/).
 5. The Julia Project. *Numbers: Float16, Float32, Float64, eps, nextfloat*. [Documentación oficial](https://docs.julialang.org/en/v1/base/numbers/).
-6. Board of Governors of the Federal Reserve System (US). *U.S. Dollars to Euro Spot Exchange Rate (DEXUSEU)*. [FRED, Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/series/DEXUSEU). Copia local del intervalo 2025-01-02–2025-06-30, descargada el 2026-09-14. Serie marcada por FRED como dominio público; se solicita atribución.
+6. Board of Governors of the Federal Reserve System (US). *U.S. Dollars to Euro Spot Exchange Rate (DEXUSEU)*. [FRED, Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/series/DEXUSEU). Copia integrada del intervalo 2025-01-02–2025-06-30, descargada el 2026-09-14. Serie marcada por FRED como dominio público; se solicita atribución.
 
 ---
 
@@ -760,12 +915,15 @@ begin
 	@assert short_window < long_window
 	@assert eltype(moving_average(Float32[1, 2, 3], 2)) === Float32
 	@assert eltype(moving_average(Float64[1, 2, 3], 2)) === Float64
+	@assert eltype(comparison.x32) === Float32
+	@assert eltype(comparison.d32) === Float32
+	@assert eltype(comparison.d64) === Float64
 	@assert all(isfinite, comparison.d64) && all(isfinite, comparison.d32)
 	@assert signal(controlled.s64, controlled.l64) != signal(controlled.s32, controlled.l32)
 	@assert length(real_data.values) >= 20
 	@assert length(threshold_summary) == 7
 	@assert all(p -> p isa Plots.Plot, (p1, p2, p3, p4, p5, p6))
-	md"✅ **Validaciones internas superadas:** tipos, finitud, caso crítico, datos locales, tabla de sensibilidad y seis gráficas."
+	md"✅ **Validaciones internas superadas:** tipos Float32/Float64, finitud, caso crítico, datos integrados, tabla de sensibilidad y seis gráficas."
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -787,7 +945,7 @@ PlutoUI = "~0.7.83"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.12"
+julia_version = "1.10.5"
 manifest_format = "2.0"
 project_hash = "44f7dd23278abd461ee6c1d6bc63eb959e4422a8"
 
@@ -863,7 +1021,7 @@ version = "0.13.1"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.2+1"
+version = "1.1.1+0"
 
 [[deps.Contour]]
 git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
@@ -1218,7 +1376,7 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.1010+0"
+version = "2.28.2+1"
 
 [[deps.Measures]]
 git-tree-sha1 = "b513cedd20d9c914783d8ad83d08120702bf2c77"
@@ -1236,7 +1394,7 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2025.12.2"
+version = "2023.1.10"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -1257,12 +1415,12 @@ version = "1.3.6+0"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.23+5"
+version = "0.3.23+4"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1824,7 +1982,7 @@ version = "1.52.0+1"
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.6.1+0"
+version = "17.4.0+2"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1846,7 +2004,6 @@ version = "1.13.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═9cd90ec4-69ae-4b1e-a835-6f3f7d3ba100
 # ╠═1f1dd7f7-55cb-4cb0-80b4-58b0ed069101
 # ╟─6fdb3e8d-82b6-40dc-b857-a73a0d1d9102
 # ╟─ccbab3d6-3453-4ae1-861e-3e96dbbcb103
