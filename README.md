@@ -2,7 +2,7 @@
 
 Repositorio académico de **Mateo Gabriel Gonzalez Lara** para reunir ejercicios, experimentos y entregables de la materia Análisis Numérico.
 
-La idea del repositorio es que cada trabajo pueda leerse como una pequeña investigación: partir de una pregunta, construir evidencia reproducible y explicar qué cambió en la comprensión del problema.
+
 
 ## Trabajos disponibles
 
