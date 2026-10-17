@@ -9,6 +9,7 @@ Repositorio académico de **Mateo Gabriel Gonzalez Lara** para reunir ejercicios
 | N.º | Tema | Estado | Acceso |
 |---:|---|---|---|
 | 01 | Aritmética de punto flotante y decisiones financieras | Completo | [Carpeta del trabajo](01_Punto_Flotante/) · [Cuaderno Pluto](01_Punto_Flotante/floating_point_finance.jl) · [Versión HTML](01_Punto_Flotante/floating_point_finance.html) |
+| 02 | Newton, raíces múltiples y precisión finita | Completo | [Carpeta del trabajo](02_EcuacionesNo_Lineales/) · [Cuaderno Pluto](02_EcuacionesNo_Lineales/newton_multiple_roots.jl) · [Versión HTML](02_EcuacionesNo_Lineales/newton_multiple_roots.html) |
 
 ## Posibles ejercicios de la materia
 
@@ -29,13 +30,20 @@ Estos temas son una guía inicial, no trabajos ya realizados. Cada nueva entrega
 ```text
 Analisis-Numerico/
 ├── README.md
-└── 01_Punto_Flotante/
+├── 01_Punto_Flotante/
+│   ├── README.md
+│   ├── floating_point_finance.jl
+│   ├── floating_point_finance.html
+│   ├── Project.toml
+│   ├── Manifest.toml
+│   ├── data/
+│   └── test/
+└── 02_EcuacionesNo_Lineales/
     ├── README.md
-    ├── floating_point_finance.jl
-    ├── floating_point_finance.html
+    ├── newton_multiple_roots.jl
+    ├── newton_multiple_roots.html
     ├── Project.toml
     ├── Manifest.toml
-    ├── data/
     └── test/
 ```
 
