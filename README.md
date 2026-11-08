@@ -11,6 +11,13 @@ Repositorio académico de **Mateo Gabriel Gonzalez Lara** para reunir ejercicios
 | 01 | Aritmética de punto flotante y decisiones financieras | Completo | [Carpeta del trabajo](01_Punto_Flotante/) · [Cuaderno Pluto](01_Punto_Flotante/floating_point_finance.jl) · [Versión HTML](01_Punto_Flotante/floating_point_finance.html) |
 | 02 | Newton, raíces múltiples y precisión finita | Completo | [Carpeta del trabajo](02_EcuacionesNo_Lineales/) · [Cuaderno Pluto](02_EcuacionesNo_Lineales/newton_multiple_roots.jl) · [Versión HTML](02_EcuacionesNo_Lineales/newton_multiple_roots.html) |
 
+## Tareas opcionales
+
+| Tema | Estado | Acceso |
+|---|---|---|
+| Tarea opcional: método de Shamanskii y ecuaciones no lineales | Completo y verificado | [Instrucciones](Tareas%20Opcionales/Tarea%20opcional%20Ecuaciones%20lineales/) · [Pluto](Tareas%20Opcionales/Tarea%20opcional%20Ecuaciones%20lineales/shamanskii_ecuacion_no_lineal.jl) · [HTML](Tareas%20Opcionales/Tarea%20opcional%20Ecuaciones%20lineales/shamanskii_ecuacion_no_lineal.html) |
+| Tarea opcional: punto flotante | Completo y verificado | [Instrucciones y entregables](Tareas%20Opcionales/Tarea%20opcional%20Punto%20flotante/) · [Jupyter](Tareas%20Opcionales/Tarea%20opcional%20Punto%20flotante/PuntoFlotante_Julia_final.ipynb) · [Pluto](Tareas%20Opcionales/Tarea%20opcional%20Punto%20flotante/PuntoFlotante_Julia_final.jl) · [HTML](Tareas%20Opcionales/Tarea%20opcional%20Punto%20flotante/PuntoFlotante_Julia_final.html) |
+
 ## Posibles ejercicios de la materia
 
 El repositorio crecerá a medida que avance el curso. Algunos temas que podrían convertirse en próximos ejercicios son:
@@ -38,13 +45,23 @@ Analisis-Numerico/
 │   ├── Manifest.toml
 │   ├── data/
 │   └── test/
-└── 02_EcuacionesNo_Lineales/
-    ├── README.md
-    ├── newton_multiple_roots.jl
-    ├── newton_multiple_roots.html
-    ├── Project.toml
-    ├── Manifest.toml
-    └── test/
+├── 02_EcuacionesNo_Lineales/
+│   ├── README.md
+│   ├── newton_multiple_roots.jl
+│   ├── newton_multiple_roots.html
+│   └── test/
+└── Tareas Opcionales/
+    ├── Tarea opcional Ecuaciones lineales/
+    │   ├── README.md
+    │   ├── shamanskii_ecuacion_no_lineal.jl
+    │   ├── shamanskii_ecuacion_no_lineal.html
+    │   └── test/
+    └── Tarea opcional Punto flotante/
+        ├── README.md
+        ├── PuntoFlotante_Julia_final.ipynb
+        ├── PuntoFlotante_Julia_final.jl
+        ├── PuntoFlotante_Julia_final.html
+        └── test/
 ```
 
 Los archivos `.jl` son los cuadernos reproducibles; los archivos `.html` permiten revisar los resultados directamente desde el navegador.
